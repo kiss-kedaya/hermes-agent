@@ -46,6 +46,45 @@ from agent.models_dev import (
 logger = logging.getLogger(__name__)
 
 
+def _auth_store_has_material_credentials(
+    store: dict,
+    *provider_ids: str,
+) -> bool:
+    """Return True only when auth.json holds non-empty credentials for a provider.
+
+    Empty placeholders like ``credential_pool: {copilot: []}`` must not make the
+    provider appear authenticated in `/model`.
+    """
+    if not isinstance(store, dict):
+        return False
+
+    providers_store = store.get("providers", {})
+    if not isinstance(providers_store, dict):
+        providers_store = {}
+    pool_store = store.get("credential_pool", {})
+    if not isinstance(pool_store, dict):
+        pool_store = {}
+
+    for provider_id in provider_ids:
+        if not provider_id:
+            continue
+        provider_entry = providers_store.get(provider_id)
+        if isinstance(provider_entry, dict) and provider_entry:
+            return True
+        if isinstance(provider_entry, list) and any(provider_entry):
+            return True
+
+        pool_entry = pool_store.get(provider_id)
+        if isinstance(pool_entry, list) and any(
+            isinstance(entry, dict) and entry for entry in pool_entry
+        ):
+            return True
+        if isinstance(pool_entry, dict) and pool_entry:
+            return True
+
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Non-agentic model warning
 # ---------------------------------------------------------------------------
@@ -927,12 +966,7 @@ def list_authenticated_providers(
             try:
                 from hermes_cli.auth import _load_auth_store
                 store = _load_auth_store()
-                providers_store = store.get("providers", {})
-                pool_store = store.get("credential_pool", {})
-                if store and (
-                    pid in providers_store or hermes_slug in providers_store
-                    or pid in pool_store or hermes_slug in pool_store
-                ):
+                if _auth_store_has_material_credentials(store, pid, hermes_slug):
                     has_creds = True
             except Exception as exc:
                 logger.debug("Auth store check failed for %s: %s", pid, exc)
@@ -1014,12 +1048,7 @@ def list_authenticated_providers(
             try:
                 from hermes_cli.auth import _load_auth_store
                 _cp_store = _load_auth_store()
-                _cp_providers_store = _cp_store.get("providers", {})
-                _cp_pool_store = _cp_store.get("credential_pool", {})
-                if _cp_store and (
-                    _cp.slug in _cp_providers_store
-                    or _cp.slug in _cp_pool_store
-                ):
+                if _auth_store_has_material_credentials(_cp_store, _cp.slug):
                     _cp_has_creds = True
             except Exception:
                 pass

@@ -8,6 +8,29 @@ are exposed in the model picker.
 import pytest
 from hermes_cli.model_switch import list_authenticated_providers, switch_model
 from hermes_cli import runtime_provider as rp
+from hermes_cli.providers import HermesOverlay
+
+
+def test_list_authenticated_providers_ignores_empty_auth_store_pool_entries(monkeypatch):
+    """Empty credential_pool placeholders must not surface providers in /model."""
+    monkeypatch.setattr("agent.models_dev.fetch_models_dev", lambda: {})
+    monkeypatch.setattr(
+        "hermes_cli.providers.HERMES_OVERLAYS",
+        {"github-copilot": HermesOverlay(transport="openai_chat")},
+    )
+    monkeypatch.setattr(
+        "hermes_cli.auth._load_auth_store",
+        lambda: {"providers": {}, "credential_pool": {"copilot": []}},
+    )
+
+    providers = list_authenticated_providers(
+        current_provider="",
+        user_providers={},
+        custom_providers=[],
+        max_models=20,
+    )
+
+    assert all(p["slug"] != "copilot" for p in providers)
 
 
 # =============================================================================

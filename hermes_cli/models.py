@@ -1432,8 +1432,9 @@ def detect_provider_for_model(
         if not has_creds:
             try:
                 from hermes_cli.auth import _load_auth_store
+                from hermes_cli.model_switch import _auth_store_has_material_credentials
                 store = _load_auth_store()
-                if direct_match in store.get("providers", {}) or direct_match in store.get("credential_pool", {}):
+                if _auth_store_has_material_credentials(store, direct_match):
                     has_creds = True
             except Exception:
                 pass
