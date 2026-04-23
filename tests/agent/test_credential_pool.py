@@ -302,7 +302,7 @@ def test_mark_exhausted_and_rotate_persists_status(tmp_path, monkeypatch):
                         "auth_type": "api_key",
                         "priority": 0,
                         "source": "manual",
-                        "access_token": "sk-ant-api-primary",
+                        "access_token": "***",
                     },
                     {
                         "id": "cred-2",
@@ -310,7 +310,7 @@ def test_mark_exhausted_and_rotate_persists_status(tmp_path, monkeypatch):
                         "auth_type": "api_key",
                         "priority": 1,
                         "source": "manual",
-                        "access_token": "sk-ant-api-secondary",
+                        "access_token": "***",
                     },
                 ]
             },
@@ -339,11 +339,19 @@ def test_try_refresh_current_updates_only_current_entry(tmp_path, monkeypatch):
         tmp_path,
         {
             "version": 1,
+            "providers": {
+                "openai-codex": {
+                    "tokens": {
+                        "access_token": "access-old",
+                        "refresh_token": "refresh-old",
+                    },
+                }
+            },
             "credential_pool": {
                 "openai-codex": [
                     {
                         "id": "cred-1",
-                        "label": "primary",
+                        "label": "weekly-reset",
                         "auth_type": "oauth",
                         "priority": 0,
                         "source": "device_code",
@@ -353,10 +361,10 @@ def test_try_refresh_current_updates_only_current_entry(tmp_path, monkeypatch):
                     },
                     {
                         "id": "cred-2",
-                        "label": "secondary",
+                        "label": "other",
                         "auth_type": "oauth",
                         "priority": 1,
-                        "source": "device_code",
+                        "source": "manual:device_code",
                         "access_token": "access-other",
                         "refresh_token": "refresh-other",
                         "base_url": "https://chatgpt.com/backend-api/codex",
@@ -393,8 +401,34 @@ def test_try_refresh_current_updates_only_current_entry(tmp_path, monkeypatch):
     assert secondary["refresh_token"] == "refresh-other"
 
 
-def test_load_pool_seeds_env_api_key(tmp_path, monkeypatch):
+def test_load_pool_does_not_seed_openai_codex_without_refresh_token(tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
+
+    _write_auth_store(
+        tmp_path,
+        {
+            "version": 1,
+            "providers": {
+                "openai-codex": {
+                    "tokens": {
+                        "access_token": "access-only",
+                    },
+                }
+            },
+            "credential_pool": {},
+        },
+    )
+
+    from agent.credential_pool import load_pool
+
+    pool = load_pool("openai-codex")
+
+    assert pool.entries() == []
+    assert pool.select() is None
+
+
+def test_load_pool_seeds_env_api_key(tmp_path, monkeypatch):
+
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-seeded")
     _write_auth_store(tmp_path, {"version": 1, "providers": {}})
 

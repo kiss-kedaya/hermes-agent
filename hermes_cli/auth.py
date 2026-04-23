@@ -835,10 +835,40 @@ def unsuppress_credential_source(provider_id: str, source: str) -> bool:
         return True
 
 
+def _provider_state_has_material_credentials(provider_id: str, state: Optional[Dict[str, Any]]) -> bool:
+    """Return True only when provider state contains real usable auth fields."""
+    if not isinstance(state, dict) or not state:
+        return False
+
+    provider_id = (provider_id or "").strip().lower()
+    if provider_id == "openai-codex":
+        tokens = state.get("tokens")
+        if not isinstance(tokens, dict):
+            return False
+        access_token = tokens.get("access_token")
+        refresh_token = tokens.get("refresh_token")
+        return bool(
+            isinstance(access_token, str) and access_token.strip()
+            and isinstance(refresh_token, str) and refresh_token.strip()
+        )
+
+    if provider_id == "nous":
+        access_token = state.get("access_token")
+        refresh_token = state.get("refresh_token")
+        return bool(
+            isinstance(access_token, str) and access_token.strip()
+            and isinstance(refresh_token, str) and refresh_token.strip()
+        )
+
+    return True
+
+
+
 def get_provider_auth_state(provider_id: str) -> Optional[Dict[str, Any]]:
     """Return persisted auth state for a provider, or None."""
     auth_store = _load_auth_store()
-    return _load_provider_state(auth_store, provider_id)
+    state = _load_provider_state(auth_store, provider_id)
+    return state if _provider_state_has_material_credentials(provider_id, state) else None
 
 
 def get_active_provider() -> Optional[str]:

@@ -215,6 +215,30 @@ def test_get_nous_auth_status_empty_returns_not_logged_in(tmp_path, monkeypatch)
     assert status["logged_in"] is False
 
 
+def test_get_provider_auth_state_filters_empty_nous_singleton(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    (hermes_home / "auth.json").write_text(json.dumps({
+        "version": 1,
+        "providers": {"nous": {}},
+    }))
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+
+    assert get_provider_auth_state("nous") is None
+
+
+def test_get_provider_auth_state_filters_nous_singleton_missing_refresh_token(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    (hermes_home / "auth.json").write_text(json.dumps({
+        "version": 1,
+        "providers": {"nous": {"access_token": "at"}},
+    }))
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+
+    assert get_provider_auth_state("nous") is None
+
+
 def test_refresh_token_persisted_when_mint_returns_insufficient_credits(tmp_path, monkeypatch):
     hermes_home = tmp_path / "hermes"
     _setup_nous_auth(hermes_home, refresh_token="refresh-old")

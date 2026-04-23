@@ -22,6 +22,44 @@ from hermes_cli.auth import (
 )
 
 
+def test_get_provider_auth_state_filters_empty_codex_singleton(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    (hermes_home / "auth.json").write_text(json.dumps({
+        "version": 1,
+        "providers": {"openai-codex": {}},
+    }))
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+
+    assert get_provider_auth_state("openai-codex") is None
+
+
+def test_get_provider_auth_state_filters_codex_singleton_without_tokens(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    (hermes_home / "auth.json").write_text(json.dumps({
+        "version": 1,
+        "providers": {"openai-codex": {"tokens": {}}},
+    }))
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+
+    assert get_provider_auth_state("openai-codex") is None
+
+
+def test_get_provider_auth_state_filters_codex_singleton_missing_refresh_token(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    (hermes_home / "auth.json").write_text(json.dumps({
+        "version": 1,
+        "providers": {"openai-codex": {"tokens": {"access_token": "at"}}},
+    }))
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+
+    assert get_provider_auth_state("openai-codex") is None
+
+
+
+
 def _setup_hermes_auth(hermes_home: Path, *, access_token: str = "access", refresh_token: str = "refresh"):
     """Write Codex tokens into the Hermes auth store."""
     hermes_home.mkdir(parents=True, exist_ok=True)

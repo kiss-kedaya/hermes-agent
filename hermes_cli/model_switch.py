@@ -50,13 +50,18 @@ def _auth_store_has_material_credentials(
     store: dict,
     *provider_ids: str,
 ) -> bool:
-    """Return True only when auth.json holds non-empty credentials for a provider.
+    """Return True only when auth.json holds non-empty credentials for provider.
 
-    Empty placeholders like ``credential_pool: {copilot: []}`` must not make the
-    provider appear authenticated in `/model`.
+    Empty placeholders like ``credential_pool: {copilot: []}`` or
+    ``providers: {openai-codex: {}}`` must not make provider appear authenticated.
     """
     if not isinstance(store, dict):
         return False
+
+    try:
+        from hermes_cli.auth import _provider_state_has_material_credentials
+    except Exception:
+        _provider_state_has_material_credentials = None
 
     providers_store = store.get("providers", {})
     if not isinstance(providers_store, dict):
@@ -69,10 +74,14 @@ def _auth_store_has_material_credentials(
         if not provider_id:
             continue
         provider_entry = providers_store.get(provider_id)
-        if isinstance(provider_entry, dict) and provider_entry:
-            return True
-        if isinstance(provider_entry, list) and any(provider_entry):
-            return True
+        if callable(_provider_state_has_material_credentials):
+            if _provider_state_has_material_credentials(provider_id, provider_entry):
+                return True
+        else:
+            if isinstance(provider_entry, dict) and provider_entry:
+                return True
+            if isinstance(provider_entry, list) and any(provider_entry):
+                return True
 
         pool_entry = pool_store.get(provider_id)
         if isinstance(pool_entry, list) and any(

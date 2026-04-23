@@ -33,6 +33,28 @@ def test_list_authenticated_providers_ignores_empty_auth_store_pool_entries(monk
     assert all(p["slug"] != "copilot" for p in providers)
 
 
+def test_list_authenticated_providers_ignores_empty_auth_store_singleton_entries(monkeypatch):
+    """Empty providers:<id> singleton placeholders must not surface overlays in /model."""
+    monkeypatch.setattr("agent.models_dev.fetch_models_dev", lambda: {})
+    monkeypatch.setattr(
+        "hermes_cli.providers.HERMES_OVERLAYS",
+        {"openai-codex": HermesOverlay(transport="openai_chat", auth_type="oauth_external")},
+    )
+    monkeypatch.setattr(
+        "hermes_cli.auth._load_auth_store",
+        lambda: {"providers": {"openai-codex": {}}, "credential_pool": {}},
+    )
+
+    providers = list_authenticated_providers(
+        current_provider="",
+        user_providers={},
+        custom_providers=[],
+        max_models=20,
+    )
+
+    assert all(p["slug"] != "openai-codex" for p in providers)
+
+
 # =============================================================================
 # Tests for list_authenticated_providers including full models list
 # =============================================================================
